@@ -5,11 +5,11 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/', // Essential for Render Static Sites
+  base: '/',
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'esbuild', // Faster, built-in to Vite, and fixes your build error
+    minify: 'esbuild', // Built-in to Vite, fixes the "terser not found" error
     rollupOptions: {
       output: {
         manualChunks: {
@@ -18,9 +18,5 @@ export default defineConfig({
         },
       },
     },
-  },
-  server: {
-    port: 3000,
-    strictPort: true,
   },
 });

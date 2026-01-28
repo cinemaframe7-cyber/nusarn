@@ -2,7 +2,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { Message, Role } from "../types";
 
-// Fallback proxy if direct connection is blocked
 const PROXY_URL = "https://gemini-server-nova-ai07.onrender.com";
 
 export interface StreamResponse {
@@ -10,19 +9,15 @@ export interface StreamResponse {
   sources?: { title: string; uri: string }[];
 }
 
-/**
- * Safely retrieves the API key from environment variables.
- * Note: In Vite, variables must be prefixed with VITE_ for client-side access,
- * but this tool uses process.env.API_KEY.
- */
 const getSafeApiKey = (): string | null => {
   try {
-    // Check various common injection points to prevent crashes
-    const key = process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_KEY;
+    const env = (import.meta as any).env;
+    // Check both process (for local dev/certain hosts) and import.meta.env (for Vite production)
+    const key = (typeof process !== 'undefined' && process.env?.API_KEY) || env?.VITE_GEMINI_KEY;
     if (!key || key === 'undefined' || key.includes("YOUR_API_KEY")) return null;
     return key;
   } catch (e) {
-    console.error("Environment variable access failed:", e);
+    console.warn("Environment variable access failed, app will proceed without direct key.");
     return null;
   }
 };

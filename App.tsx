@@ -20,22 +20,22 @@ const App: React.FC = () => {
   const [protocol, setProtocol] = useState<Protocol>('connecting');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Check API Configuration on Load
   useEffect(() => {
     if (window.innerWidth > 1024) setSidebarOpen(true);
     
     const checkEnvironment = () => {
-      // Safely check for the key
-      const env = (import.meta as any).env;
-      const key = process.env.API_KEY || env?.VITE_GEMINI_KEY;
-      
-      // Verification log (Safe for production: only logs presence, not the value)
-      console.log("[System] API Key detected:", !!key);
+      // Safe check for API key to prevent "process is not defined" crash
+      let key = null;
+      try {
+        const env = (import.meta as any).env;
+        key = (typeof process !== 'undefined' && process.env?.API_KEY) || env?.VITE_GEMINI_KEY;
+      } catch (e) {
+        console.warn("[System] Error accessing environment variables", e);
+      }
       
       if (key && !key.includes("YOUR_API_KEY") && key !== 'undefined') {
         setProtocol('direct');
       } else {
-        console.warn("[System] API Key missing or invalid. Falling back to Proxy mode.");
         setProtocol('proxy'); 
       }
     };
@@ -113,7 +113,6 @@ const App: React.FC = () => {
 
   return (
     <div className={`flex h-screen overflow-hidden relative ${themeConfig[theme]}`}>
-      {/* Sidebar */}
       <aside className={`fixed md:relative z-50 h-full border-r border-white/5 transition-all duration-300 flex flex-col ${theme === 'light' ? 'bg-white' : 'bg-[#121212]'} ${sidebarOpen ? 'w-[280px]' : 'w-0 overflow-hidden border-none'}`}>
         <div className="p-6">
           <div className="flex items-center justify-between mb-8">
