@@ -9,7 +9,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'terser',
+    minify: 'esbuild', // Faster, built-in to Vite, and fixes your build error
     rollupOptions: {
       output: {
         manualChunks: {

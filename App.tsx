@@ -20,20 +20,27 @@ const App: React.FC = () => {
   const [protocol, setProtocol] = useState<Protocol>('connecting');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Check API Key on Load
+  // Check API Configuration on Load
   useEffect(() => {
     if (window.innerWidth > 1024) setSidebarOpen(true);
     
-    const checkKey = () => {
-      const key = process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_KEY;
-      if (key && !key.includes("YOUR_API_KEY")) {
+    const checkEnvironment = () => {
+      // Safely check for the key
+      const env = (import.meta as any).env;
+      const key = process.env.API_KEY || env?.VITE_GEMINI_KEY;
+      
+      // Verification log (Safe for production: only logs presence, not the value)
+      console.log("[System] API Key detected:", !!key);
+      
+      if (key && !key.includes("YOUR_API_KEY") && key !== 'undefined') {
         setProtocol('direct');
       } else {
-        setProtocol('proxy'); // Default to proxy if key is missing
+        console.warn("[System] API Key missing or invalid. Falling back to Proxy mode.");
+        setProtocol('proxy'); 
       }
     };
     
-    checkKey();
+    checkEnvironment();
   }, []);
 
   useEffect(() => {
@@ -87,7 +94,7 @@ const App: React.FC = () => {
     } catch (error: any) {
       console.error("Chat Error:", error);
       setProtocol('error');
-      const errorMessage = `### ⚠️ কানেকশন এরর\n\n${error.message}\n\n*রেন্ডার ড্যাশবোর্ডে গিয়ে API_KEY চেক করুন অথবা প্রক্সি সার্ভার সচল কি না নিশ্চিত করুন।*`;
+      const errorMessage = `### ⚠️ কানেকশন সমস্যা\n\n**Error:** ${error.message || 'Unknown Error'}\n\n*নিশ্চিত করুন যে Render-এর Environment সেকশনে VITE_GEMINI_KEY সঠিকভাবে সেট করা আছে। সরাসরি কানেকশন কাজ না করলে প্রক্সি সার্ভার ব্যবহার করার চেষ্টা করা হচ্ছে।*`;
       setMessages(prev => 
         prev.map(msg => 
           msg.id === assistantId ? { ...msg, content: errorMessage } : msg
@@ -163,7 +170,7 @@ const App: React.FC = () => {
               protocol === 'error' ? 'bg-red-500' : 'bg-blue-500'
             }`}></div>
             <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
-              {protocol === 'direct' ? 'Direct Node' : protocol === 'proxy' ? 'Relay Server' : protocol === 'error' ? 'System Failure' : 'Syncing...'}
+              {protocol === 'direct' ? 'Direct Node' : protocol === 'proxy' ? 'Relay Server' : protocol === 'error' ? 'System Warning' : 'Syncing...'}
             </span>
           </div>
         </header>
