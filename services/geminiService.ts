@@ -2,6 +2,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { Message, Role } from "../types";
 
+// আপনার দেওয়া রেন্ডার প্রক্সি ইউআরএল
 const PROXY_URL = "https://gemini-server-nova-ai07.onrender.com";
 
 export interface StreamResponse {
@@ -10,12 +11,16 @@ export interface StreamResponse {
 }
 
 /**
- * Strategy 1: Direct SDK Connection (High-Performance Gemini 3 Pro)
+ * Strategy 1: Direct SDK Connection
+ * রেন্ডারের এনভায়রনমেন্টে API_KEY থাকলে এটি কাজ করবে
  */
 async function streamDirect(messages: Message[], onChunk: (data: StreamResponse) => void) {
-  if (!process.env.API_KEY) throw new Error("API Key Missing");
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey.includes("YOUR_API_KEY")) {
+    throw new Error("Local API Key not found. Switching to Proxy...");
+  }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   const contents = messages.map(m => ({
     role: m.role === Role.USER ? 'user' : 'model',
     parts: [{ text: m.content }]
@@ -25,7 +30,7 @@ async function streamDirect(messages: Message[], onChunk: (data: StreamResponse)
     model: 'gemini-3-pro-preview',
     contents: contents,
     config: {
-      systemInstruction: "You are NOVA, a world-class AI assistant. Use professional tone and Markdown. If asked about current news, use search.",
+      systemInstruction: "You are NOVA, a highly intelligent AI. Always respond in a helpful manner. Use Markdown.",
       thinkingConfig: { thinkingBudget: 4000 },
       tools: [{ googleSearch: {} }]
     }
@@ -45,7 +50,8 @@ async function streamDirect(messages: Message[], onChunk: (data: StreamResponse)
 }
 
 /**
- * Strategy 2: Proxy Fallback (Bypass ISP/Hosting Blocks)
+ * Strategy 2: Proxy Relaying
+ * এপিআই কী না থাকলে বা ব্লকড হলে এটি ব্যবহার হবে
  */
 async function streamViaProxy(messages: Message[], onChunk: (data: StreamResponse) => void) {
   const contents = messages.map(m => ({
@@ -59,36 +65,54 @@ async function streamViaProxy(messages: Message[], onChunk: (data: StreamRespons
     body: JSON.stringify({ contents }),
   });
 
-  if (!response.ok) throw new Error("Proxy server unresponsive.");
+  if (!response.ok) throw new Error("প্রক্সি সার্ভারটি বর্তমানে অফলাইন আছে।");
   
   const reader = response.body?.getReader();
   const decoder = new TextDecoder();
   let accumulated = "";
 
-  while (reader) {
+  if (!reader) throw new Error("Response body is empty");
+
+  while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     const chunkText = decoder.decode(value);
-    accumulated += chunkText.replace(/^data:\s*/, '').trim();
-    onChunk({ text: accumulated });
+    // প্রক্সি সার্ভারের ডেটা ফরম্যাট অনুযায়ী ক্লিনিং
+    const cleanChunk = chunkText.replace(/^data:\s*/, '').trim();
+    if (cleanChunk) {
+      accumulated += cleanChunk;
+      onChunk({ text: accumulated });
+    }
   }
 }
 
+/**
+ * Main Logic: অটোমেটিক মেথড সিলেকশন
+ */
 export const streamChatResponse = async (
   messages: Message[],
   onChunk: (data: StreamResponse) => void,
   onProtocolChange?: (protocol: 'direct' | 'proxy') => void
 ): Promise<void> => {
-  try {
-    if (onProtocolChange) onProtocolChange('direct');
-    await streamDirect(messages, onChunk);
-  } catch (error) {
-    console.warn("Direct access failed. Falling back to proxy...");
+  
+  // চেক করা হচ্ছে API_KEY এনভায়রনমেন্টে আছে কি না
+  const hasKey = process.env.API_KEY && !process.env.API_KEY.includes("YOUR_API_KEY");
+
+  if (hasKey) {
     try {
-      if (onProtocolChange) onProtocolChange('proxy');
-      await streamViaProxy(messages, onChunk);
-    } catch (proxyError) {
-      throw new Error("সবগুলো কানেকশন মেথড ব্লক করা হয়েছে। দয়া করে ভিপিএন ব্যবহার করুন বা হোস্টিং প্রোভাইডারের সাথে কথা বলুন।");
+      if (onProtocolChange) onProtocolChange('direct');
+      await streamDirect(messages, onChunk);
+      return; // সাকসেস হলে এখানেই শেষ
+    } catch (error) {
+      console.warn("Direct Connection failed, trying Proxy...", error);
     }
+  }
+
+  // কী না থাকলে বা ডাইরেক্ট ফেইল করলে প্রক্সিতে যাবে
+  try {
+    if (onProtocolChange) onProtocolChange('proxy');
+    await streamViaProxy(messages, onChunk);
+  } catch (proxyError: any) {
+    throw new Error(proxyError.message || "সবগুলো কানেকশন মেথড ব্যর্থ হয়েছে।");
   }
 };

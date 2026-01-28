@@ -22,6 +22,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (window.innerWidth > 1024) setSidebarOpen(true);
+    // Initial protocol check
+    const hasKey = process.env.API_KEY && !process.env.API_KEY.includes("YOUR_API_KEY");
+    setProtocol(hasKey ? 'direct' : 'proxy');
   }, []);
 
   useEffect(() => {
@@ -73,7 +76,7 @@ const App: React.FC = () => {
         (p) => setProtocol(p)
       );
     } catch (error: any) {
-      const errorMessage = `### ⚠️ কানেকশন এরর\n\n${error.message}\n\n*Direct API এবং Proxy উভয়ই ব্যর্থ হয়েছে। আপনার হোস্টিং সার্ভিসটি সম্ভবত গুগল এপিআই ব্লক করছে।*`;
+      const errorMessage = `### ⚠️ কানেকশন সমস্যা\n\n${error.message}\n\n*সরাসরি কানেকশন এবং প্রক্সি সার্ভার—উভয়ই কাজ করছে না। আপনার নেটওয়ার্ক চেক করুন।*`;
       setMessages(prev => 
         prev.map(msg => 
           msg.id === assistantId ? { ...msg, content: errorMessage } : msg
@@ -92,7 +95,6 @@ const App: React.FC = () => {
 
   return (
     <div className={`flex h-screen overflow-hidden relative ${themeConfig[theme]}`}>
-      {/* Sidebar logic... */}
       <aside className={`fixed md:relative z-50 h-full border-r border-white/5 transition-all duration-300 flex flex-col ${theme === 'light' ? 'bg-white' : 'bg-[#121212]'} ${sidebarOpen ? 'w-[280px]' : 'w-0 overflow-hidden border-none'}`}>
         <div className="p-6">
           <div className="flex items-center justify-between mb-8">
@@ -132,20 +134,20 @@ const App: React.FC = () => {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <header className="flex items-center justify-between px-6 h-16 border-b border-white/5">
+        <header className="flex items-center justify-between px-6 h-16 border-b border-white/5 backdrop-blur-md z-10">
           <div className="flex items-center gap-4">
             {!sidebarOpen && (
               <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-white/5 rounded-lg transition-all">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
               </button>
             )}
-            <span className="text-sm font-bold tracking-tight opacity-90 italic uppercase tracking-widest">Nova 3 Pro</span>
+            <span className="text-sm font-bold tracking-tight opacity-90 italic uppercase tracking-widest">Nova Core</span>
           </div>
           
           <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
             <div className={`w-2 h-2 rounded-full animate-pulse ${protocol === 'direct' ? 'bg-emerald-500' : protocol === 'proxy' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
             <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
-              {protocol === 'direct' ? 'Stable Direct' : protocol === 'proxy' ? 'Secure Proxy' : 'Initializing...'}
+              {protocol === 'direct' ? 'Direct Node' : protocol === 'proxy' ? 'Relay Server' : 'Syncing...'}
             </span>
           </div>
         </header>
@@ -157,7 +159,15 @@ const App: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
               </div>
               <h2 className="text-4xl font-black tracking-tighter mb-4">স্বাগতম, আমি NOVA</h2>
-              <p className="text-sm font-medium opacity-40 uppercase tracking-[0.2em]">High-precision intelligence protocol active.</p>
+              <p className="text-sm font-medium opacity-40 uppercase tracking-[0.2em] mb-12">System status: {protocol === 'direct' ? 'High Speed' : 'Proxy Relaying'}</p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-[600px]">
+                {["একটি আধুনিক ওয়েবসাইট ডিজাইন করো", "বাজেট প্ল্যানিং-এ সাহায্য করো", "জটিল কোড ব্যাখ্যা করো", "সৃজনশীল গল্প লেখো"].map((txt, i) => (
+                  <button key={i} onClick={() => handleSendMessage(txt)} className={`p-4 rounded-2xl border text-sm font-bold text-left transition-all hover:scale-[1.02] active:scale-95 ${theme === 'light' ? 'bg-white border-zinc-200 shadow-sm' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                    {txt}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="flex flex-col pb-40 pt-8 max-w-4xl mx-auto w-full">
