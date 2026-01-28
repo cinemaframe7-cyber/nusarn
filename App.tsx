@@ -6,7 +6,7 @@ import { ChatInput } from './components/ChatInput';
 import { streamChatResponse } from './services/geminiService';
 
 type Theme = 'dark' | 'light' | 'nano';
-type Protocol = 'direct' | 'proxy' | 'connecting';
+type Protocol = 'direct' | 'proxy' | 'connecting' | 'error';
 
 interface EnhancedMessage extends Message {
   sources?: { title: string; uri: string }[];
@@ -20,11 +20,20 @@ const App: React.FC = () => {
   const [protocol, setProtocol] = useState<Protocol>('connecting');
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Check API Key on Load
   useEffect(() => {
     if (window.innerWidth > 1024) setSidebarOpen(true);
-    // Initial protocol check
-    const hasKey = process.env.API_KEY && !process.env.API_KEY.includes("YOUR_API_KEY");
-    setProtocol(hasKey ? 'direct' : 'proxy');
+    
+    const checkKey = () => {
+      const key = process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_KEY;
+      if (key && !key.includes("YOUR_API_KEY")) {
+        setProtocol('direct');
+      } else {
+        setProtocol('proxy'); // Default to proxy if key is missing
+      }
+    };
+    
+    checkKey();
   }, []);
 
   useEffect(() => {
@@ -76,7 +85,9 @@ const App: React.FC = () => {
         (p) => setProtocol(p)
       );
     } catch (error: any) {
-      const errorMessage = `### ⚠️ কানেকশন সমস্যা\n\n${error.message}\n\n*সরাসরি কানেকশন এবং প্রক্সি সার্ভার—উভয়ই কাজ করছে না। আপনার নেটওয়ার্ক চেক করুন।*`;
+      console.error("Chat Error:", error);
+      setProtocol('error');
+      const errorMessage = `### ⚠️ কানেকশন এরর\n\n${error.message}\n\n*রেন্ডার ড্যাশবোর্ডে গিয়ে API_KEY চেক করুন অথবা প্রক্সি সার্ভার সচল কি না নিশ্চিত করুন।*`;
       setMessages(prev => 
         prev.map(msg => 
           msg.id === assistantId ? { ...msg, content: errorMessage } : msg
@@ -95,6 +106,7 @@ const App: React.FC = () => {
 
   return (
     <div className={`flex h-screen overflow-hidden relative ${themeConfig[theme]}`}>
+      {/* Sidebar */}
       <aside className={`fixed md:relative z-50 h-full border-r border-white/5 transition-all duration-300 flex flex-col ${theme === 'light' ? 'bg-white' : 'bg-[#121212]'} ${sidebarOpen ? 'w-[280px]' : 'w-0 overflow-hidden border-none'}`}>
         <div className="p-6">
           <div className="flex items-center justify-between mb-8">
@@ -145,9 +157,13 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
-            <div className={`w-2 h-2 rounded-full animate-pulse ${protocol === 'direct' ? 'bg-emerald-500' : protocol === 'proxy' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
+            <div className={`w-2 h-2 rounded-full animate-pulse ${
+              protocol === 'direct' ? 'bg-emerald-500' : 
+              protocol === 'proxy' ? 'bg-amber-500' : 
+              protocol === 'error' ? 'bg-red-500' : 'bg-blue-500'
+            }`}></div>
             <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
-              {protocol === 'direct' ? 'Direct Node' : protocol === 'proxy' ? 'Relay Server' : 'Syncing...'}
+              {protocol === 'direct' ? 'Direct Node' : protocol === 'proxy' ? 'Relay Server' : protocol === 'error' ? 'System Failure' : 'Syncing...'}
             </span>
           </div>
         </header>
@@ -159,7 +175,7 @@ const App: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
               </div>
               <h2 className="text-4xl font-black tracking-tighter mb-4">স্বাগতম, আমি NOVA</h2>
-              <p className="text-sm font-medium opacity-40 uppercase tracking-[0.2em] mb-12">System status: {protocol === 'direct' ? 'High Speed' : 'Proxy Relaying'}</p>
+              <p className="text-sm font-medium opacity-40 uppercase tracking-[0.2em] mb-12">System status: {protocol === 'direct' ? 'Stable High Speed' : 'Relay Mode active'}</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-[600px]">
                 {["একটি আধুনিক ওয়েবসাইট ডিজাইন করো", "বাজেট প্ল্যানিং-এ সাহায্য করো", "জটিল কোড ব্যাখ্যা করো", "সৃজনশীল গল্প লেখো"].map((txt, i) => (
